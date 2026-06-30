@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Expense Log</title>
+<meta name="theme-color" content="#1C1E1F">
+<style>
+:root{
+  --ink:#1C1E1F;
+  --paper:#23262A;
+  --paper-raised:#2B2F34;
+  --line:#3A3F45;
+  --text:#E7E5DF;
+  --text-dim:#9A9C99;
+  --ember:#E8743B;
+  --good:#7FA876;
+  --warn:#D9A441;
+  --bad:#C75C4E;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--ink);color:var(--text);
+  font-family:-apple-system,'Archivo',system-ui,sans-serif;
+  overscroll-behavior-y:none;
+}
+body{padding-bottom:env(safe-area-inset-bottom);}
+.app{max-width:520px;margin:0 auto;padding:18px 16px 90px;min-height:100vh;}
+
+.header-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.brand{font-weight:800;font-size:15px;letter-spacing:-0.01em;}
+.brand .dot{color:var(--ember);}
+.nav-btn{background:var(--paper);border:1px solid var(--line);color:var(--text-dim);font-size:11px;
+  padding:7px 12px;border-radius:8px;cursor:pointer;font-family:'SF Mono',Menlo,monospace;text-decoration:none;}
+
+.tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper);border-radius:10px;padding:4px;}
+.tabs button{flex:1;background:transparent;border:none;color:var(--text-dim);font-size:13px;font-weight:600;
+  padding:9px 0;border-radius:8px;cursor:pointer;}
+.tabs button.active{background:var(--ember);color:#1A1100;}
+
+.summary-strip{display:flex;gap:10px;margin-bottom:16px;}
+.stat-card{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
+.stat-card .v{font-family:'SF Mono',Menlo,monospace;font-size:18px;font-weight:700;color:var(--ember);}
+.stat-card .l{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:3px;}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;}
+.card h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);margin:0 0 12px;}
+
+.row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+.row:last-child{margin-bottom:0;}
+.row label{font-size:12.5px;color:var(--text-dim);width:90px;flex-shrink:0;}
+
+input[type=number],input[type=text],input[type=date],select{
+  background:var(--paper-raised);border:1px solid var(--line);border-radius:8px;
+  color:var(--text);font-family:'SF Mono',Menlo,monospace;font-size:15px;padding:9px 11px;
+  width:100%;flex:1;-webkit-appearance:none;appearance:none;
+}
+input:focus,select:focus{outline:none;border-color:var(--ember);}
+
+.amount-prefix{position:relative;flex:1;}
+.amount-prefix span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:'SF Mono',Menlo,monospace;font-size:15px;}
+.amount-prefix input{padding-left:26px;}
+
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.cat-btn{background:var(--paper-raised);border:1px solid var(--line);color:var(--text-dim);
+  font-size:11px;padding:9px 2px;border-radius:8px;cursor:pointer;text-align:center;}
+.cat-btn.active{background:var(--ember);border-color:var(--ember);color:#1A1100;font-weight:700;}
+
+.pay-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.pay-btn{background:var(--paper-raised);border:1px solid var(--line);color:var(--text-dim);
+  font-size:10.5px;padding:9px 2px;border-radius:8px;cursor:pointer;text-align:center;}
+.pay-btn.active{background:var(--text);border-color:var(--text);color:var(--ink);font-weight:700;}
+.pay-btn.active.cc{background:var(--bad);border-color:var(--bad);color:var(--text);}
+
+.btn-add{width:100%;padding:14px;border-radius:10px;border:none;background:var(--ember);color:#1A1100;
+  font-weight:700;font-size:15px;cursor:pointer;margin-top:4px;}
+.btn-add:active{background:#F08654;}
+
+.txn-list{display:flex;flex-direction:column;gap:8px;}
+.txn-item{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.txn-left{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}
+.txn-cat{font-size:13px;font-weight:600;}
+.txn-meta{font-size:11px;color:var(--text-dim);font-family:'SF Mono',Menlo,monospace;}
+.txn-note{font-size:11px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.txn-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.txn-amount{font-family:'SF Mono',Menlo,monospace;font-size:15px;font-weight:700;}
+.txn-amount.cc{color:var(--bad);}
+.txn-del{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:0 4px;}
+
+.empty-state{text-align:center;color:var(--text-dim);font-size:13px;padding:30px 0;}
+
+.cat-pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+
+.breakdown-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.breakdown-row:last-child{margin-bottom:0;}
+.breakdown-label{width:100px;font-size:12px;color:var(--text-dim);flex-shrink:0;}
+.breakdown-bar-wrap{flex:1;height:8px;background:var(--paper-raised);border-radius:4px;overflow:hidden;}
+.breakdown-bar{height:100%;background:var(--ember);border-radius:4px;}
+.breakdown-amt{font-family:'SF Mono',Menlo,monospace;font-size:12px;font-weight:700;width:70px;text-align:right;flex-shrink:0;}
+
+.month-filter{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+.month-chip{flex-shrink:0;background:var(--paper);border:1px solid var(--line);color:var(--text-dim);
+  font-size:11px;padding:7px 13px;border-radius:20px;cursor:pointer;font-family:'SF Mono',Menlo,monospace;}
+.month-chip.active{background:var(--ember);border-color:var(--ember);color:#1A1100;font-weight:700;}
+
+.accounts-card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;}
+.accounts-row{display:flex;gap:10px;}
+.account-box{flex:1;cursor:pointer;}
+.account-box .l{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.account-box .v{font-family:'SF Mono',Menlo,monospace;font-size:19px;font-weight:700;}
+.account-box .v.bal{color:var(--good);}
+.account-box .v.bal.low{color:var(--bad);}
+.account-box .v.lim{color:var(--text);}
+.account-box .v.lim.low{color:var(--bad);}
+.account-box .v.unset{color:var(--text-dim);font-size:13px;font-weight:500;}
+.account-divider{width:1px;background:var(--line);margin:2px 4px;}
+.accounts-edit-row{display:flex;gap:10px;margin-bottom:10px;}
+.accounts-edit-row:last-child{margin-bottom:0;}
+.accounts-edit-row .amount-prefix{flex:1;}
+.accounts-btns{display:flex;gap:8px;margin-top:12px;}
+.accounts-btns button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);font-size:13px;font-weight:600;cursor:pointer;}
+.btn-account-save{background:var(--ember);border-color:var(--ember);color:#1A1100;}
+.btn-account-cancel{background:transparent;color:var(--text-dim);}
+.limit-bar-wrap{height:5px;background:var(--paper-raised);border-radius:3px;overflow:hidden;margin-top:8px;}
+.limit-bar{height:100%;background:var(--ember);border-radius:3px;}
+.limit-bar.low{background:var(--bad);}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const STORAGE_KEY = 'exp:transactions';
+const CATEGORIES = ["Food","Weekend Party","Travel","Petrol","Extra","Clothes","Misc"];
+const PAYMENT_MODES = ["Cash","UPI","Debit","Credit"];
+const PAYMENT_LABELS = {Cash:"Cash",UPI:"UPI",Debit:"Debit Card",Credit:"Credit Card"};
+const CAT_COLORS = {
+  "Food":"#7FA876","Weekend Party":"#C75C4E","Travel":"#5B8FB5","Petrol":"#D9A441",
+  "Extra":"#A87FC2","Clothes":"#D58CB0","Misc":"#9A9C99"
+};
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtINR(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{day:'numeric',month:'short'}); }
+function monthKey(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
+function uid(){ return 't_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+
+function getTxns(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+function setTxns(list){ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+
+function getStartingBalance(){
+  const v = localStorage.getItem('exp:startBalance');
+  return v===null ? null : parseFloat(v);
+}
+function setStartingBalance(v){ localStorage.setItem('exp:startBalance', v); }
+
+function getCreditLimit(){
+  const v = localStorage.getItem('exp:creditLimit');
+  return v===null ? null : parseFloat(v);
+}
+function setCreditLimit(v){ localStorage.setItem('exp:creditLimit', v); }
+
+let activeTab = 'add'; // add | log | summary
+let form = { date: todayStr(), category:'', payment:'', amount:'', note:'' };
+let monthFilter = 'all';
+let editingAccounts = false;
+let accountForm = { balance:'', limit:'' };
+
+function computeLiveBalance(txns){
+  const start = getStartingBalance();
+  if(start===null) return null;
+  const spent = txns.reduce((s,t)=>s+t.amount,0);
+  return start - spent;
+}
+function computeLiveCreditUsed(txns){
+  return txns.filter(t=>t.payment==='Credit').reduce((s,t)=>s+t.amount,0);
+}
+function computeLiveCreditAvailable(txns){
+  const limit = getCreditLimit();
+  if(limit===null) return null;
+  return limit - computeLiveCreditUsed(txns);
+}
+
+function renderAccountsCard(txns){
+  if(editingAccounts){
+    return `
+      <div class="accounts-card">
+        <div class="accounts-edit-row">
+          <div style="flex:1;">
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:5px;">ACCOUNT BALANCE</div>
+            <div class="amount-prefix"><span>₹</span><input type="number" id="acc_balance" placeholder="0" value="${accountForm.balance}"></div>
+          </div>
+        </div>
+        <div class="accounts-edit-row">
+          <div style="flex:1;">
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:5px;">CREDIT LIMIT (total)</div>
+            <div class="amount-prefix"><span>₹</span><input type="number" id="acc_limit" placeholder="0" value="${accountForm.limit}"></div>
+          </div>
+        </div>
+        <div class="accounts-btns">
+          <button class="btn-account-cancel" id="acc_cancel">Cancel</button>
+          <button class="btn-account-save" id="acc_save">Save</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const balance = computeLiveBalance(txns);
+  const limit = getCreditLimit();
+  const creditAvailable = computeLiveCreditAvailable(txns);
+  const creditUsed = computeLiveCreditUsed(txns);
+  const limitPct = limit ? Math.min(100, (creditUsed/limit)*100) : 0;
+  const limitLow = limit && creditAvailable < limit*0.2;
+  const balLow = balance!==null && balance < 0;
+
+  return `
+    <div class="accounts-card" id="accountsCard">
+      <div class="accounts-row">
+        <div class="account-box" id="balBox">
+          <div class="l">Account balance</div>
+          ${balance===null
+            ? `<div class="v unset">Tap to set</div>`
+            : `<div class="v bal ${balLow?'low':''}">${fmtINR(balance)}</div>`}
+        </div>
+        <div class="account-divider"></div>
+        <div class="account-box" id="limBox">
+          <div class="l">Credit limit left</div>
+          ${limit===null
+            ? `<div class="v unset">Tap to set</div>`
+            : `<div class="v lim ${limitLow?'low':''}">${fmtINR(creditAvailable)}</div>`}
+        </div>
+      </div>
+      ${limit!==null ? `<div class="limit-bar-wrap"><div class="limit-bar ${limitLow?'low':''}" style="width:${limitPct}%"></div></div>` : ''}
+    </div>
+  `;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const txns = getTxns().sort((a,b)=> b.date.localeCompare(a.date) || b.created - a.created);
+
+  const total = txns.reduce((s,t)=>s+t.amount,0);
+  const ccTotal = txns.filter(t=>t.payment==='Credit').reduce((s,t)=>s+t.amount,0);
+  const count = txns.length;
+
+  app.innerHTML = `
+    <div class="header-bar">
+      <div class="brand">EXPENSE<span class="dot">·</span>LOG</div>
+      <a href="../health/" class="nav-btn">← Health</a>
+    </div>
+
+    <div class="summary-strip">
+      <div class="stat-card"><div class="v">${fmtINR(total)}</div><div class="l">Total spent</div></div>
+      <div class="stat-card"><div class="v">${fmtINR(ccTotal)}</div><div class="l">On credit card</div></div>
+      <div class="stat-card"><div class="v">${count}</div><div class="l">Transactions</div></div>
+    </div>
+
+    ${renderAccountsCard(txns)}
+
+    <div class="tabs">
+      <button data-tab="add" class="${activeTab==='add'?'active':''}">Add</button>
+      <button data-tab="log" class="${activeTab==='log'?'active':''}">Log</button>
+      <button data-tab="summary" class="${activeTab==='summary'?'active':''}">Summary</button>
+    </div>
+
+    <div id="tabContent"></div>
+  `;
+
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ activeTab=b.dataset.tab; render(); });
+  });
+
+  const content = document.getElementById('tabContent');
+  if(activeTab==='add') content.innerHTML = renderAddTab();
+  else if(activeTab==='log') content.innerHTML = renderLogTab(txns);
+  else content.innerHTML = renderSummaryTab(txns);
+
+  attachTabListeners(txns);
+  attachAccountsListeners(txns);
+}
+
+function renderAddTab(){
+  return `
+    <div class="card">
+      <h3>New expense</h3>
+      <div class="row">
+        <label>Date</label>
+        <input type="date" id="f_date" value="${form.date}">
+      </div>
+      <div class="row">
+        <label>Amount</label>
+        <div class="amount-prefix"><span>₹</span><input type="number" id="f_amount" placeholder="0" value="${form.amount}"></div>
+      </div>
+      <div class="row" style="align-items:flex-start;">
+        <label style="margin-top:8px;">Category</label>
+        <div class="cat-grid" id="f_cat">
+          ${CATEGORIES.map(c=>`<button class="cat-btn ${form.category===c?'active':''}" data-val="${c}">${c}</button>`).join('')}
+        </div>
+      </div>
+      <div class="row" style="align-items:flex-start;">
+        <label style="margin-top:8px;">Payment</label>
+        <div class="pay-grid" id="f_pay">
+          ${PAYMENT_MODES.map(p=>`<button class="pay-btn ${form.payment===p?'active '+(p==='Credit'?'cc':''):''}" data-val="${p}">${PAYMENT_LABELS[p]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="row">
+        <label>Note</label>
+        <input type="text" id="f_note" placeholder="optional" value="${form.note}">
+      </div>
+      <button class="btn-add" id="addBtn">Add expense</button>
+    </div>
+  `;
+}
+
+function renderLogTab(txns){
+  if(txns.length===0){
+    return `<div class="card"><div class="empty-state">No expenses logged yet.<br>Switch to Add to log your first one.</div></div>`;
+  }
+  return `
+    <div class="card">
+      <h3>All transactions</h3>
+      <div class="txn-list">
+        ${txns.map(t=>`
+          <div class="txn-item">
+            <div class="txn-left">
+              <span class="txn-cat" style="color:${CAT_COLORS[t.category]||'#fff'}">${t.category}</span>
+              <span class="txn-meta">${fmtShort(t.date)} · ${PAYMENT_LABELS[t.payment]||t.payment}</span>
+              ${t.note?`<span class="txn-note">${escapeHtml(t.note)}</span>`:''}
+            </div>
+            <div class="txn-right">
+              <span class="txn-amount ${t.payment==='Credit'?'cc':''}">${fmtINR(t.amount)}</span>
+              <button class="txn-del" data-id="${t.id}">×</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderSummaryTab(txns){
+  const months = [...new Set(txns.map(t=>monthKey(t.date)))];
+  const filtered = monthFilter==='all' ? txns : txns.filter(t=>monthKey(t.date)===monthFilter);
+
+  const byCat = {};
+  CATEGORIES.forEach(c=>byCat[c]=0);
+  filtered.forEach(t=>{ byCat[t.category] = (byCat[t.category]||0) + t.amount; });
+  const maxCat = Math.max(1, ...Object.values(byCat));
+
+  const byPay = {};
+  PAYMENT_MODES.forEach(p=>byPay[p]=0);
+  filtered.forEach(t=>{ byPay[t.payment] = (byPay[t.payment]||0) + t.amount; });
+
+  const total = filtered.reduce((s,t)=>s+t.amount,0);
+
+  let monthChips = `<div class="month-chip ${monthFilter==='all'?'active':''}" data-month="all">All time</div>`;
+  monthChips += months.map(m=>`<div class="month-chip ${monthFilter===m?'active':''}" data-month="${m}">${m}</div>`).join('');
+
+  return `
+    <div class="month-filter" id="monthFilter">${monthChips}</div>
+
+    <div class="card">
+      <h3>Spend by category${monthFilter!=='all'?` — ${monthFilter}`:''}</h3>
+      ${CATEGORIES.map(c=>`
+        <div class="breakdown-row">
+          <div class="breakdown-label">${c}</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${(byCat[c]/maxCat*100)}%;background:${CAT_COLORS[c]}"></div></div>
+          <div class="breakdown-amt">${fmtINR(byCat[c])}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <h3>By payment mode</h3>
+      ${PAYMENT_MODES.map(p=>`
+        <div class="breakdown-row">
+          <div class="breakdown-label">${PAYMENT_LABELS[p]}</div>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${total>0?(byPay[p]/total*100):0}%;background:${p==='Credit'?'#C75C4E':'#E8743B'}"></div></div>
+          <div class="breakdown-amt">${fmtINR(byPay[p])}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <h3>Total${monthFilter!=='all'?` — ${monthFilter}`:' (all time)'}</h3>
+      <div style="font-family:'SF Mono',Menlo,monospace;font-size:28px;font-weight:700;color:var(--ember);">${fmtINR(total)}</div>
+    </div>
+  `;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function attachAccountsListeners(txns){
+  if(editingAccounts){
+    document.getElementById('acc_balance').addEventListener('input', e=>{ accountForm.balance=e.target.value; });
+    document.getElementById('acc_limit').addEventListener('input', e=>{ accountForm.limit=e.target.value; });
+    document.getElementById('acc_cancel').addEventListener('click', ()=>{ editingAccounts=false; render(); });
+    document.getElementById('acc_save').addEventListener('click', ()=>{
+      // Saving balance: treat the entered number as the NEW current balance (after past spend),
+      // so we back-calculate a starting balance such that starting - spentSoFar = entered value.
+      const spentSoFar = txns.reduce((s,t)=>s+t.amount,0);
+      const creditUsedSoFar = txns.filter(t=>t.payment==='Credit').reduce((s,t)=>s+t.amount,0);
+
+      if(accountForm.balance!==''){
+        const newCurrent = parseFloat(accountForm.balance);
+        if(!isNaN(newCurrent)) setStartingBalance(newCurrent + spentSoFar);
+      }
+      if(accountForm.limit!==''){
+        const newAvailable = parseFloat(accountForm.limit);
+        if(!isNaN(newAvailable)) setCreditLimit(newAvailable + creditUsedSoFar);
+      }
+      editingAccounts=false;
+      render();
+    });
+  } else {
+    const balBox = document.getElementById('balBox');
+    const limBox = document.getElementById('limBox');
+    if(balBox) balBox.addEventListener('click', ()=>{
+      const bal = computeLiveBalance(txns);
+      const avail = computeLiveCreditAvailable(txns);
+      accountForm = { balance: bal===null?'':String(Math.round(bal)), limit: avail===null?'':String(Math.round(avail)) };
+      editingAccounts=true;
+      render();
+    });
+    if(limBox) limBox.addEventListener('click', ()=>{
+      const bal = computeLiveBalance(txns);
+      const avail = computeLiveCreditAvailable(txns);
+      accountForm = { balance: bal===null?'':String(Math.round(bal)), limit: avail===null?'':String(Math.round(avail)) };
+      editingAccounts=true;
+      render();
+    });
+  }
+}
+
+function attachTabListeners(txns){
+  if(activeTab==='add'){
+    document.getElementById('f_date').addEventListener('change', e=>{ form.date=e.target.value; });
+    document.getElementById('f_amount').addEventListener('input', e=>{ form.amount=e.target.value; });
+    document.getElementById('f_note').addEventListener('input', e=>{ form.note=e.target.value; });
+    document.getElementById('f_cat').querySelectorAll('.cat-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{ form.category=b.dataset.val; render(); });
+    });
+    document.getElementById('f_pay').querySelectorAll('.pay-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{ form.payment=b.dataset.val; render(); });
+    });
+    document.getElementById('addBtn').addEventListener('click', ()=>{
+      const amt = parseFloat(form.amount);
+      if(!amt || amt<=0){ flashInvalid('f_amount'); return; }
+      if(!form.category){ flashInvalid('f_cat'); return; }
+      if(!form.payment){ flashInvalid('f_pay'); return; }
+      const list = getTxns();
+      list.push({ id:uid(), date:form.date, category:form.category, payment:form.payment, amount:amt, note:form.note, created:Date.now() });
+      setTxns(list);
+      form = { date: form.date, category:'', payment:'', amount:'', note:'' };
+      activeTab = 'log';
+      render();
+    });
+  }
+  if(activeTab==='log'){
+    document.querySelectorAll('.txn-del').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const list = getTxns().filter(t=>t.id!==b.dataset.id);
+        setTxns(list);
+        render();
+      });
+    });
+  }
+  if(activeTab==='summary'){
+    document.querySelectorAll('.month-chip').forEach(b=>{
+      b.addEventListener('click', ()=>{ monthFilter=b.dataset.month; render(); });
+    });
+  }
+}
+
+function flashInvalid(id){
+  const el = document.getElementById(id);
+  if(el){
+    el.style.outline = '2px solid var(--bad)';
+    setTimeout(()=>{ el.style.outline=''; }, 600);
+  }
+}
+
+render();
+</script>
+</body>
+</html>
