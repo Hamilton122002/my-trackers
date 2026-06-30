@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>90-Day Reset</title>
+<meta name="theme-color" content="#1C1E1F">
+<style>
+:root{
+  --ink:#1C1E1F;
+  --paper:#23262A;
+  --paper-raised:#2B2F34;
+  --line:#3A3F45;
+  --text:#E7E5DF;
+  --text-dim:#9A9C99;
+  --ember:#E8743B;
+  --good:#7FA876;
+  --warn:#D9A441;
+  --bad:#C75C4E;
+  --gold:#E8C547;
+  --silver:#C7C9CC;
+  --bronze:#C68B59;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--ink);color:var(--text);
+  font-family:-apple-system,'Archivo',system-ui,sans-serif;
+  overscroll-behavior-y:none;
+}
+body{padding-bottom:env(safe-area-inset-bottom);}
+.app{max-width:520px;margin:0 auto;padding:18px 16px 90px;min-height:100vh;}
+
+/* ---- Login screen ---- */
+.login-wrap{display:flex;flex-direction:column;justify-content:center;min-height:90vh;padding:0 4px;}
+.login-brand{text-align:center;margin-bottom:32px;}
+.login-brand .title{font-weight:800;font-size:28px;letter-spacing:-0.02em;}
+.login-brand .dot{color:var(--ember);}
+.login-brand .sub{font-size:13px;color:var(--text-dim);margin-top:6px;}
+.login-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px;}
+.login-tabs{display:flex;gap:6px;margin-bottom:18px;background:var(--paper-raised);border-radius:10px;padding:4px;}
+.login-tabs button{flex:1;background:transparent;border:none;color:var(--text-dim);font-size:13px;font-weight:600;
+  padding:9px 0;border-radius:8px;cursor:pointer;}
+.login-tabs button.active{background:var(--ember);color:#1A1100;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.field input{width:100%;background:var(--paper-raised);border:1px solid var(--line);border-radius:9px;
+  color:var(--text);font-family:'SF Mono',Menlo,monospace;font-size:16px;padding:11px 13px;}
+.field input:focus{outline:none;border-color:var(--ember);}
+.btn-login{width:100%;padding:14px;border-radius:10px;border:none;background:var(--ember);color:#1A1100;
+  font-weight:700;font-size:15px;cursor:pointer;margin-top:6px;}
+.btn-login:active{background:#F08654;}
+.btn-login:disabled{opacity:0.5;}
+.login-error{color:var(--bad);font-size:12.5px;margin-top:10px;text-align:center;min-height:16px;}
+.login-hint{color:var(--text-dim);font-size:11px;text-align:center;margin-top:14px;line-height:1.5;}
+
+/* ---- Runway ---- */
+.runway{margin-bottom:22px;}
+.runway-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+.runway-top .title{font-weight:800;font-size:19px;letter-spacing:-0.02em;}
+.runway-top .day{font-family:'SF Mono',Menlo,monospace;font-size:11px;color:var(--text-dim);letter-spacing:.04em;}
+.ticks{display:flex;gap:1.5px;height:24px;border-radius:4px;overflow:hidden;}
+.tick{flex:1;background:var(--paper-raised);cursor:pointer;}
+.tick.filled{background:var(--ember);}
+.tick.today{box-shadow:inset 0 0 0 2px var(--text);}
+.runway-meta{display:flex;justify-content:space-between;margin-top:6px;font-family:'SF Mono',Menlo,monospace;font-size:10px;color:var(--text-dim);}
+
+/* ---- Header / nav ---- */
+.header-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.brand{font-weight:800;font-size:15px;letter-spacing:-0.01em;}
+.brand .dot{color:var(--ember);}
+.header-right{display:flex;align-items:center;gap:8px;}
+.player-chip{font-family:'SF Mono',Menlo,monospace;font-size:11px;color:var(--text-dim);}
+.logout-btn{background:var(--paper);border:1px solid var(--line);color:var(--text-dim);font-size:11px;
+  padding:6px 10px;border-radius:8px;cursor:pointer;}
+
+.tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper);border-radius:10px;padding:4px;}
+.tabs button{flex:1;background:transparent;border:none;color:var(--text-dim);font-size:13px;font-weight:600;
+  padding:9px 0;border-radius:8px;cursor:pointer;}
+.tabs button.active{background:var(--ember);color:#1A1100;}
+
+/* ---- Top row (tracker) ---- */
+.toprow{display:flex;gap:12px;align-items:center;margin-bottom:18px;}
+.datebox{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+.datebox label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:4px;}
+.datebox input[type=date]{background:transparent;border:none;color:var(--text);font-family:'SF Mono',Menlo,monospace;font-size:16px;font-weight:600;width:100%;padding:0;}
+.datebox input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.7);}
+
+.score-ring{position:relative;width:72px;height:72px;flex-shrink:0;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-ring .bg{stroke:var(--paper-raised);}
+.score-ring .fg{stroke:var(--ember);transition:stroke-dashoffset .4s ease;}
+.score-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'SF Mono',Menlo,monospace;}
+.score-num .n{font-size:19px;font-weight:700;line-height:1;}
+.score-num .l{font-size:7px;color:var(--text-dim);letter-spacing:.04em;margin-top:2px;text-align:center;}
+
+/* ---- Cards ---- */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;}
+.card h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);margin:0 0 12px;display:flex;align-items:center;gap:7px;}
+.card h3 .num{color:var(--ember);font-family:'SF Mono',Menlo,monospace;}
+
+.row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+.row:last-child{margin-bottom:0;}
+.row label{font-size:12.5px;color:var(--text-dim);width:104px;flex-shrink:0;}
+
+input[type=number],input[type=text]{
+  background:var(--paper-raised);border:1px solid var(--line);border-radius:8px;
+  color:var(--text);font-family:'SF Mono',Menlo,monospace;font-size:15px;padding:9px 11px;
+  width:100%;flex:1;
+}
+input:focus,textarea:focus{outline:none;border-color:var(--ember);}
+input:disabled{opacity:0.35;}
+
+.seg{display:flex;gap:6px;flex:1;}
+.seg button{
+  flex:1;background:var(--paper-raised);border:1px solid var(--line);color:var(--text-dim);
+  font-family:'SF Mono',Menlo,monospace;font-size:12px;padding:9px 4px;border-radius:8px;cursor:pointer;
+}
+.seg button.active.clean{background:var(--good);border-color:var(--good);color:#13150f;font-weight:700;}
+.seg button.active.moderate{background:var(--warn);border-color:var(--warn);color:#13150f;font-weight:700;}
+.seg button.active.junk{background:var(--bad);border-color:var(--bad);color:#13150f;font-weight:700;}
+.seg button.active.yes{background:var(--good);border-color:var(--good);color:#13150f;font-weight:700;}
+.seg button.active.no{background:var(--bad);border-color:var(--bad);color:#13150f;font-weight:700;}
+
+.slider-wrap{flex:1;display:flex;align-items:center;gap:10px;}
+input[type=range]{-webkit-appearance:none;flex:1;height:4px;background:var(--paper-raised);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--ember);cursor:pointer;border:2px solid var(--ink);}
+.slider-val{font-family:'SF Mono',Menlo,monospace;font-size:16px;font-weight:700;width:22px;text-align:center;color:var(--ember);flex-shrink:0;}
+
+textarea{
+  width:100%;background:var(--paper-raised);border:1px solid var(--line);border-radius:8px;
+  color:var(--text);font-size:13px;padding:10px 11px;resize:vertical;min-height:42px;font-family:inherit;
+}
+
+.weight-note{font-family:'SF Mono',Menlo,monospace;font-size:10px;color:var(--text-dim);margin-top:8px;}
+
+.save-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, var(--ink) 70%, transparent);}
+.save-bar-inner{max-width:520px;margin:0 auto;display:flex;gap:10px;}
+.btn-save{flex:1;padding:14px;border-radius:10px;border:none;background:var(--ember);color:#1A1100;
+  font-weight:700;font-size:15px;cursor:pointer;}
+.btn-save:active{background:#F08654;}
+.btn-save:disabled{opacity:0.5;}
+
+.suggestions ul{margin:0;padding-left:18px;}
+.suggestions li{font-size:13px;color:var(--text);margin-bottom:6px;line-height:1.4;}
+.suggestions li::marker{color:var(--ember);}
+
+.status-msg{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-10px);
+  background:var(--good);color:#13150f;font-weight:700;font-size:12px;padding:8px 16px;border-radius:20px;
+  opacity:0;transition:all .25s;pointer-events:none;z-index:20;}
+.status-msg.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.status-msg.error{background:var(--bad);color:var(--text);}
+
+.weight-history{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-top:10px;}
+.weight-pill{flex-shrink:0;background:var(--paper-raised);border-radius:8px;padding:7px 11px;text-align:center;min-width:58px;}
+.weight-pill .v{font-family:'SF Mono',Menlo,monospace;font-size:14px;font-weight:700;}
+.weight-pill .d{font-family:'SF Mono',Menlo,monospace;font-size:9px;color:var(--text-dim);margin-top:2px;}
+
+/* ---- Leaderboard ---- */
+.lb-row{display:flex;align-items:center;gap:12px;background:var(--paper);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.lb-row.me{border-color:var(--ember);}
+.lb-rank{font-family:'SF Mono',Menlo,monospace;font-size:15px;font-weight:700;width:24px;text-align:center;color:var(--text-dim);flex-shrink:0;}
+.lb-rank.gold{color:var(--gold);}
+.lb-rank.silver{color:var(--silver);}
+.lb-rank.bronze{color:var(--bronze);}
+.lb-info{flex:1;min-width:0;}
+.lb-name{font-weight:700;font-size:14px;}
+.lb-name .you{color:var(--ember);font-size:11px;font-weight:600;margin-left:4px;}
+.lb-stats{font-family:'SF Mono',Menlo,monospace;font-size:10px;color:var(--text-dim);margin-top:2px;}
+.lb-score{font-family:'SF Mono',Menlo,monospace;font-size:20px;font-weight:700;color:var(--ember);flex-shrink:0;}
+
+.empty-state{text-align:center;color:var(--text-dim);font-size:13px;padding:30px 0;}
+.loading-state{text-align:center;color:var(--text-dim);font-size:13px;padding:40px 0;font-family:'SF Mono',Menlo,monospace;}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// =====================================================
+// CONFIG — paste your Supabase project values here
+// =====================================================
+const SUPABASE_URL = 'https://ithfjdyiffedyqrkllvu.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'sb_publishable_pGNMzoBtNr-06oTIBoe9bg_4Qi4QepQ';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const N_DAYS = 90;
+const SESSION_KEY = 'h90:session'; // {playerId, name, challengeCode}
+
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function addDays(s,n){ const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function dayDiff(a,b){ return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000); }
+function fmtShort(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+function getSession(){
+  try{ return JSON.parse(localStorage.getItem(SESSION_KEY)); }
+  catch(e){ return null; }
+}
+function setSession(s){ localStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+function emptyEntry(){
+  return {
+    sleepHours:'', sleepQuality:'',
+    foodTag:'', calories:'', protein:'',
+    workoutDone:'', workoutMins:'',
+    steps:'',
+    stress:'', stressAction:'',
+    water:'', noPhone:'',
+    weight:''
+  };
+}
+
+function dbRowToEntry(row){
+  if(!row) return emptyEntry();
+  return {
+    sleepHours: row.sleep_hours ?? '',
+    sleepQuality: row.sleep_quality ?? '',
+    foodTag: row.food_tag ?? '',
+    calories: row.calories ?? '',
+    protein: row.protein ?? '',
+    workoutDone: row.workout_done ?? '',
+    workoutMins: row.workout_mins ?? '',
+    steps: row.steps ?? '',
+    stress: row.stress ?? '',
+    stressAction: row.stress_action ?? '',
+    water: row.water ?? '',
+    noPhone: row.no_phone ?? '',
+    weight: row.weight ?? ''
+  };
+}
+
+function entryToDbRow(entry, playerId, date){
+  return {
+    player_id: playerId,
+    entry_date: date,
+    sleep_hours: entry.sleepHours===''?null:parseFloat(entry.sleepHours),
+    sleep_quality: entry.sleepQuality===''?null:parseInt(entry.sleepQuality),
+    food_tag: entry.foodTag||null,
+    calories: entry.calories===''?null:parseFloat(entry.calories),
+    protein: entry.protein===''?null:parseFloat(entry.protein),
+    workout_done: entry.workoutDone||null,
+    workout_mins: entry.workoutMins===''?null:parseFloat(entry.workoutMins),
+    steps: entry.steps===''?null:parseFloat(entry.steps),
+    stress: entry.stress===''?null:parseInt(entry.stress),
+    stress_action: entry.stressAction||null,
+    water: entry.water||null,
+    no_phone: entry.noPhone||null,
+    weight: entry.weight===''?null:parseFloat(entry.weight),
+    updated_at: new Date().toISOString()
+  };
+}
+
+function scoreEntry(e){
+  let num=0, den=0;
+  if(e.sleepHours!==''&&e.sleepHours!==null){
+    const h=parseFloat(e.sleepHours);
+    let s = (h>=7&&h<=9)?100:(h>=6.5&&h<7)?80:(h>=6&&h<6.5)?60:(h>9)?75:Math.max(0,40-(6-h)*15);
+    num+=s*0.25; den+=0.25;
+  }
+  if(e.foodTag){
+    const m={clean:100,moderate:60,junk:20};
+    num+=(m[e.foodTag]??50)*0.25; den+=0.25;
+  }
+  if(e.workoutDone || e.workoutMins){
+    const mn=parseFloat(e.workoutMins)||0;
+    let s = e.workoutDone==='yes' ? Math.min(100,50+mn*1.2) : 30;
+    num+=s*0.2; den+=0.2;
+  }
+  if(e.steps!==''&&e.steps!==null){
+    const st=parseFloat(e.steps);
+    num+=Math.min(100,(st/8000)*100)*0.15; den+=0.15;
+  }
+  if(e.stress!==''&&e.stress!==null&&e.stress!==undefined){
+    let s=(10-e.stress)*10;
+    if(e.stressAction && e.stressAction.trim()) s=Math.min(100,s+15);
+    num+=s*0.15; den+=0.15;
+  }
+  if(den===0) return null;
+  return Math.round(num/den);
+}
+
+function ratingLabel(score){
+  if(score===null) return {text:'No data', color:'var(--text-dim)'};
+  if(score>=85) return {text:'Locked in', color:'var(--good)'};
+  if(score>=70) return {text:'Solid day', color:'var(--good)'};
+  if(score>=50) return {text:'Middling', color:'var(--warn)'};
+  if(score>=30) return {text:'Slipping', color:'var(--bad)'};
+  return {text:'Reset', color:'var(--bad)'};
+}
+
+function buildSuggestions(e, score){
+  const sug=[];
+  const h=parseFloat(e.sleepHours);
+  if(e.sleepHours && h<6.5){
+    sug.push(`Sleep is under 6.5h — the highest-leverage fix on a corporate schedule. Move lights-out 30 min earlier tonight.`);
+  } else if(e.sleepHours && h>9.5){
+    sug.push(`${h}h is on the long side. If quality felt low, oversleeping can be a recovery signal worth watching.`);
+  }
+  if(e.foodTag==='junk'){
+    sug.push(`Junk day logged. Pre-decide tomorrow's lunch tonight so the afternoon slump doesn't choose for you.`);
+  } else if(e.foodTag==='moderate'){
+    sug.push(`Moderate is fine, not free. One small swap tomorrow nudges this toward clean.`);
+  }
+  if(e.calories && e.protein){
+    const cal=parseFloat(e.calories), pro=parseFloat(e.protein);
+    if(pro < cal*0.0008){
+      sug.push(`Protein looks low relative to calories — aim for roughly 1.6-2g per kg bodyweight to protect muscle during fat loss.`);
+    }
+  }
+  if(e.workoutDone==='no' && !e.workoutMins){
+    sug.push(`No workout logged. A 20-min lunch walk keeps the streak alive without needing a gym session.`);
+  } else if(e.workoutMins && parseFloat(e.workoutMins)<25){
+    sug.push(`Short session today — fine as a maintenance day. Don't let it become a skipped day tomorrow.`);
+  }
+  if(e.steps && parseFloat(e.steps)<5000){
+    sug.push(`${e.steps} steps is low for a recomp goal. Try two 10-min walk breaks tomorrow.`);
+  }
+  if(e.stress>=7){
+    if(!e.stressAction || !e.stressAction.trim()){
+      sug.push(`Stress was high with no relief action logged. Even 5 min of a deliberate reset matters on high-cortisol days.`);
+    } else {
+      sug.push(`Stress was high but you took action — that matters more than the number. Keep noting what worked.`);
+    }
+  }
+  if(sug.length===0 && score!==null && score>=70){
+    sug.push(`Strong day across the board. Repeat it tomorrow — consistency compounds faster than intensity over 90 days.`);
+  }
+  if(sug.length===0){
+    sug.push(`Log a few more fields tomorrow for sharper feedback — sleep, food, and stress carry the most weight.`);
+  }
+  return sug;
+}
+
+// ---------- App State ----------
+let session = getSession();
+let activeTab = 'tracker'; // tracker | leaderboard
+let selectedDate = todayStr();
+let entry = emptyEntry();
+let entriesCache = {}; // date -> entry, for current player
+let leaderboardData = null;
+let isSaving = false;
+let statusTimer = null;
+
+// login form state
+let loginMode = 'join'; // join | login
+let loginForm = { challengeCode:'', name:'', pin:'' };
+let loginError = '';
+let loginLoading = false;
+
+async function init(){
+  if(!session){
+    renderLogin();
+  } else {
+    await loadEntriesForPlayer();
+    renderApp();
+  }
+}
+
+async function loadEntriesForPlayer(){
+  const { data, error } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('player_id', session.playerId);
+  if(!error && data){
+    entriesCache = {};
+    data.forEach(row=>{ entriesCache[row.entry_date] = dbRowToEntry(row); });
+  }
+  entry = entriesCache[selectedDate] || emptyEntry();
+}
+
+// =====================================================
+// LOGIN SCREEN
+// =====================================================
+function renderLogin(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="login-wrap">
+      <div class="login-brand">
+        <div class="title">90<span class="dot">·</span>RESET</div>
+        <div class="sub">A 90-day challenge, with friends.</div>
+      </div>
+      <div class="login-card">
+        <div class="login-tabs">
+          <button data-mode="join" class="${loginMode==='join'?'active':''}">Join challenge</button>
+          <button data-mode="login" class="${loginMode==='login'?'active':''}">Log back in</button>
+        </div>
+
+        <div class="field">
+          <label>Challenge code</label>
+          <input type="text" id="li_code" placeholder="e.g. GYMBROS90" value="${loginForm.challengeCode}" autocomplete="off" autocapitalize="characters">
+        </div>
+        <div class="field">
+          <label>Your name</label>
+          <input type="text" id="li_name" placeholder="e.g. Rohan" value="${loginForm.name}" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>4-digit PIN</label>
+          <input type="number" id="li_pin" placeholder="••••" value="${loginForm.pin}" maxlength="4" inputmode="numeric">
+        </div>
+
+        <button class="btn-login" id="loginSubmit" ${loginLoading?'disabled':''}>
+          ${loginLoading ? 'Please wait…' : (loginMode==='join' ? 'Join challenge' : 'Log in')}
+        </button>
+        <div class="login-error">${loginError}</div>
+        <div class="login-hint">
+          ${loginMode==='join'
+            ? "Ask whoever started the challenge for the code. Pick a PIN you'll remember — there's no recovery if you forget it."
+            : "Use the same name and PIN you joined with."}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll('.login-tabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ loginMode=b.dataset.mode; loginError=''; renderLogin(); });
+  });
+  document.getElementById('li_code').addEventListener('input', e=>{ loginForm.challengeCode = e.target.value.toUpperCase(); });
+  document.getElementById('li_name').addEventListener('input', e=>{ loginForm.name = e.target.value; });
+  document.getElementById('li_pin').addEventListener('input', e=>{ loginForm.pin = e.target.value.slice(0,4); });
+  document.getElementById('loginSubmit').addEventListener('click', submitLogin);
+}
+
+async function submitLogin(){
+  loginError = '';
+  const code = loginForm.challengeCode.trim().toUpperCase();
+  const name = loginForm.name.trim();
+  const pin = loginForm.pin.trim();
+
+  if(!code || !name || pin.length!==4){
+    loginError = 'Fill in challenge code, name, and a 4-digit PIN.';
+    renderLogin();
+    return;
+  }
+
+  loginLoading = true;
+  renderLogin();
+
+  try{
+    if(loginMode==='join'){
+      const { data, error } = await supabase.rpc('register_player', {
+        p_challenge_code: code, p_name: name, p_pin: pin
+      });
+      loginLoading = false;
+      if(error){ loginError = 'Connection error — check your internet and try again.'; renderLogin(); return; }
+      const result = data && data[0];
+      if(!result || !result.ok){
+        loginError = result ? result.message : 'Something went wrong.';
+        renderLogin();
+        return;
+      }
+      session = { playerId: result.player_id, name, challengeCode: code };
+      setSession(session);
+      await loadEntriesForPlayer();
+      renderApp();
+    } else {
+      const { data, error } = await supabase.rpc('login_player', {
+        p_challenge_code: code, p_name: name, p_pin: pin
+      });
+      loginLoading = false;
+      if(error){ loginError = 'Connection error — check your internet and try again.'; renderLogin(); return; }
+      const result = data && data[0];
+      if(!result || !result.ok){
+        loginError = result ? result.message : 'Something went wrong.';
+        renderLogin();
+        return;
+      }
+      session = { playerId: result.player_id, name, challengeCode: code };
+      setSession(session);
+      await loadEntriesForPlayer();
+      renderApp();
+    }
+  }catch(err){
+    loginLoading = false;
+    loginError = 'Unexpected error — try again.';
+    renderLogin();
+  }
+}
+
+function logout(){
+  clearSession();
+  session = null;
+  entriesCache = {};
+  loginForm = { challengeCode:'', name:'', pin:'' };
+  renderLogin();
+}
+
+// =====================================================
+// MAIN APP (after login)
+// =====================================================
+function renderApp(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="header-bar">
+      <div class="brand">90<span class="dot">·</span>RESET</div>
+      <div class="header-right">
+        <span class="player-chip">${session.name}</span>
+        <button class="logout-btn" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button data-tab="tracker" class="${activeTab==='tracker'?'active':''}">My Tracker</button>
+      <button data-tab="leaderboard" class="${activeTab==='leaderboard'?'active':''}">Leaderboard</button>
+    </div>
+    <div id="tabContent"></div>
+    <div class="status-msg" id="statusMsg">Saved</div>
+  `;
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      activeTab = b.dataset.tab;
+      if(activeTab==='leaderboard'){ await loadLeaderboard(); }
+      renderApp();
+    });
+  });
+
+  const content = document.getElementById('tabContent');
+  if(activeTab==='tracker'){
+    content.innerHTML = renderTracker();
+    attachTrackerListeners();
+  } else {
+    content.innerHTML = renderLeaderboard();
+  }
+}
+
+function renderTracker(){
+  const dayIndex = dayDiff(session.startDate || todayStr(), selectedDate)+1;
+  const isWeightDay = true; // simplified: weight always loggable, no forced cadence in multi-user mode
+  const score = scoreEntry(entry);
+  const rating = ratingLabel(score);
+  const suggestions = buildSuggestions(entry, score);
+
+  const filledSet = new Set(Object.keys(entriesCache).filter(d=>{
+    const e = entriesCache[d];
+    return scoreEntry(e)!==null || e.weight;
+  }));
+
+  const startDate = Object.keys(entriesCache).sort()[0] || todayStr();
+  let ticksHtml = '';
+  for(let i=0;i<N_DAYS;i++){
+    const d = addDays(startDate, i);
+    const filled = filledSet.has(d);
+    const isToday = d===selectedDate;
+    ticksHtml += `<div class="tick ${filled?'filled':''} ${isToday?'today':''}" data-date="${d}"></div>`;
+  }
+
+  const r=36,c=2*Math.PI*r;
+  const pct = score===null?0:score/100;
+  const offset = c-pct*c;
+
+  const weightEntries = Object.keys(entriesCache).filter(d=>entriesCache[d].weight).sort()
+    .map(d=>({date:d, weight: parseFloat(entriesCache[d].weight)}));
+  let weightHtml = '';
+  if(weightEntries.length>0){
+    weightHtml = '<div class="weight-history">' + weightEntries.map(w=>{
+      return `<div class="weight-pill"><div class="v">${w.weight}</div><div class="d">${fmtShort(w.date)}</div></div>`;
+    }).join('') + '</div>';
+  }
+
+  return `
+    <div class="runway">
+      <div class="runway-top">
+        <span class="title">Daily Log</span>
+        <span class="day">${filledSet.size} days logged</span>
+      </div>
+      <div class="ticks" id="ticks">${ticksHtml}</div>
+      <div class="runway-meta">
+        <span>Tap any day to edit</span>
+      </div>
+    </div>
+
+    <div class="toprow">
+      <div class="datebox">
+        <label>Logging for</label>
+        <input type="date" id="dateInput" value="${selectedDate}">
+      </div>
+      <div class="score-ring">
+        <svg width="72" height="72" viewBox="0 0 84 84">
+          <circle class="bg" cx="42" cy="42" r="${r}" fill="none" stroke-width="7"/>
+          <circle class="fg" cx="42" cy="42" r="${r}" fill="none" stroke-width="7"
+            stroke-dasharray="${c}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+        </svg>
+        <div class="score-num">
+          <div class="n" style="color:${score===null?'var(--text-dim)':'var(--text)'}">${score===null?'--':score}</div>
+          <div class="l" style="color:${rating.color}">${rating.text}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">01</span> Sleep</h3>
+      <div class="row">
+        <label>Duration (hrs)</label>
+        <input type="number" step="0.25" min="0" max="14" placeholder="7.5" id="sleepHours" value="${entry.sleepHours}">
+      </div>
+      <div class="row">
+        <label>Quality</label>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="10" id="sleepQuality" value="${entry.sleepQuality||5}">
+          <span class="slider-val" id="sleepQualityVal">${entry.sleepQuality||'—'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">02</span> Food</h3>
+      <div class="row">
+        <label>Quality</label>
+        <div class="seg" id="foodSeg">
+          ${['clean','moderate','junk'].map(t=>`<button data-val="${t}" class="${entry.foodTag===t?'active '+t:''}">${t}</button>`).join('')}
+        </div>
+      </div>
+      <div class="row">
+        <label>Calories (est)</label>
+        <input type="number" placeholder="2200" id="calories" value="${entry.calories}">
+      </div>
+      <div class="row">
+        <label>Protein (g, est)</label>
+        <input type="number" placeholder="120" id="protein" value="${entry.protein}">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">03</span> Workout & Steps</h3>
+      <div class="row">
+        <label>Trained today</label>
+        <div class="seg" id="workoutSeg">
+          <button data-val="yes" class="${entry.workoutDone==='yes'?'active yes':''}">yes</button>
+          <button data-val="no" class="${entry.workoutDone==='no'?'active no':''}">no</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Minutes</label>
+        <input type="number" placeholder="45" id="workoutMins" value="${entry.workoutMins}">
+      </div>
+      <div class="row">
+        <label>Steps</label>
+        <input type="number" placeholder="8000" id="steps" value="${entry.steps}">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">04</span> Stress / Cortisol</h3>
+      <div class="row">
+        <label>Stress level</label>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="10" id="stress" value="${entry.stress||5}">
+          <span class="slider-val" id="stressVal">${entry.stress||'—'}</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>What helped</label>
+        <textarea id="stressAction" placeholder="Walk, breathing, music...">${entry.stressAction}</textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">05</span> Habits</h3>
+      <div class="row">
+        <label>Water 2L+</label>
+        <div class="seg" id="waterSeg">
+          <button data-val="yes" class="${entry.water==='yes'?'active yes':''}">yes</button>
+          <button data-val="no" class="${entry.water==='no'?'active no':''}">no</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>No phone in bed</label>
+        <div class="seg" id="noPhoneSeg">
+          <button data-val="yes" class="${entry.noPhone==='yes'?'active yes':''}">yes</button>
+          <button data-val="no" class="${entry.noPhone==='no'?'active no':''}">no</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">06</span> Weight (kg)</h3>
+      <div class="row">
+        <label>Weight</label>
+        <input type="number" step="0.1" placeholder="optional" id="weight" value="${entry.weight}">
+      </div>
+      ${weightHtml}
+    </div>
+
+    ${score!==null?`
+    <div class="card">
+      <h3>Today's read</h3>
+      <div class="suggestions"><ul>${suggestions.map(s=>`<li>${s}</li>`).join('')}</ul></div>
+    </div>`:''}
+
+    <div class="save-bar">
+      <div class="save-bar-inner">
+        <button class="btn-save" id="saveBtn" ${isSaving?'disabled':''}>${isSaving?'Saving…':'Save entry'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function attachTrackerListeners(){
+  document.getElementById('dateInput').addEventListener('change', e=>{
+    selectedDate = e.target.value;
+    entry = entriesCache[selectedDate] || emptyEntry();
+    renderApp();
+  });
+
+  document.querySelectorAll('#ticks .tick').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      selectedDate = t.dataset.date;
+      entry = entriesCache[selectedDate] || emptyEntry();
+      renderApp();
+    });
+  });
+
+  document.getElementById('sleepHours').addEventListener('input', e=>{ entry.sleepHours=e.target.value; updateScoreLive(); });
+  document.getElementById('sleepQuality').addEventListener('input', e=>{
+    entry.sleepQuality=parseInt(e.target.value);
+    document.getElementById('sleepQualityVal').textContent=entry.sleepQuality;
+  });
+  document.getElementById('calories').addEventListener('input', e=>{ entry.calories=e.target.value; });
+  document.getElementById('protein').addEventListener('input', e=>{ entry.protein=e.target.value; });
+  document.getElementById('workoutMins').addEventListener('input', e=>{ entry.workoutMins=e.target.value; updateScoreLive(); });
+  document.getElementById('steps').addEventListener('input', e=>{ entry.steps=e.target.value; updateScoreLive(); });
+  document.getElementById('stress').addEventListener('input', e=>{
+    entry.stress=parseInt(e.target.value);
+    document.getElementById('stressVal').textContent=entry.stress;
+    updateScoreLive();
+  });
+  document.getElementById('stressAction').addEventListener('input', e=>{ entry.stressAction=e.target.value; });
+  document.getElementById('weight').addEventListener('input', e=>{ entry.weight=e.target.value; });
+
+  document.getElementById('foodSeg').querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ entry.foodTag=b.dataset.val; renderApp(); });
+  });
+  document.getElementById('workoutSeg').querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ entry.workoutDone=b.dataset.val; renderApp(); });
+  });
+  document.getElementById('waterSeg').querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ entry.water=b.dataset.val; renderApp(); });
+  });
+  document.getElementById('noPhoneSeg').querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ entry.noPhone=b.dataset.val; renderApp(); });
+  });
+
+  document.getElementById('saveBtn').addEventListener('click', saveEntry);
+}
+
+async function saveEntry(){
+  isSaving = true;
+  renderApp();
+  const row = entryToDbRow(entry, session.playerId, selectedDate);
+  const { error } = await supabase.from('entries').upsert(row, { onConflict: 'player_id,entry_date' });
+  isSaving = false;
+  entriesCache[selectedDate] = entry;
+  renderApp();
+  showStatus(error ? 'Save failed — check connection' : 'Saved', !!error);
+}
+
+function showStatus(msg, isError){
+  renderApp();
+  const el = document.getElementById('statusMsg');
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  if(statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+}
+
+function updateScoreLive(){
+  const score = scoreEntry(entry);
+  const rating = ratingLabel(score);
+  const r=36,c=2*Math.PI*r;
+  const pct = score===null?0:score/100;
+  const offset = c-pct*c;
+  const fg = document.querySelector('.score-ring .fg');
+  if(fg) fg.setAttribute('stroke-dashoffset', offset);
+  const n = document.querySelector('.score-num .n');
+  const l = document.querySelector('.score-num .l');
+  if(n){ n.textContent = score===null?'--':score; n.style.color = score===null?'var(--text-dim)':'var(--text)'; }
+  if(l){ l.textContent = rating.text; l.style.color = rating.color; }
+}
+
+// =====================================================
+// LEADERBOARD
+// =====================================================
+async function loadLeaderboard(){
+  leaderboardData = null;
+  const { data: players, error: pErr } = await supabase
+    .from('players')
+    .select('id, name')
+    .eq('challenge_code', session.challengeCode);
+  if(pErr || !players){ leaderboardData = []; return; }
+
+  const { data: entries, error: eErr } = await supabase
+    .from('entries')
+    .select('*')
+    .in('player_id', players.map(p=>p.id));
+
+  const byPlayer = {};
+  players.forEach(p=>{ byPlayer[p.id] = { name: p.name, entries: [] }; });
+  (entries||[]).forEach(row=>{
+    if(byPlayer[row.player_id]) byPlayer[row.player_id].entries.push(dbRowToEntry(row));
+  });
+
+  const rows = Object.entries(byPlayer).map(([id, info])=>{
+    const scored = info.entries.map(e=>scoreEntry(e)).filter(s=>s!==null);
+    const avgScore = scored.length ? Math.round(scored.reduce((a,b)=>a+b,0)/scored.length) : 0;
+    const daysLogged = info.entries.length;
+    const workouts = info.entries.filter(e=>e.workoutDone==='yes').length;
+    const sleepVals = info.entries.map(e=>parseFloat(e.sleepHours)).filter(v=>!isNaN(v));
+    const avgSleep = sleepVals.length ? (sleepVals.reduce((a,b)=>a+b,0)/sleepVals.length).toFixed(1) : '—';
+
+    return { id, name: info.name, avgScore, daysLogged, workouts, avgSleep };
+  }).sort((a,b)=> b.avgScore - a.avgScore || b.daysLogged - a.daysLogged);
+
+  leaderboardData = rows;
+  renderApp();
+}
+
+function renderLeaderboard(){
+  if(leaderboardData===null){
+    return `<div class="card"><div class="loading-state">Loading leaderboard…</div></div>`;
+  }
+  if(leaderboardData.length===0){
+    return `<div class="card"><div class="empty-state">No one's logged anything yet in this challenge.</div></div>`;
+  }
+  const medalClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  return leaderboardData.map((row,i)=>`
+    <div class="lb-row ${row.name===session.name?'me':''}">
+      <div class="lb-rank ${medalClass(i)}">${i+1}</div>
+      <div class="lb-info">
+        <div class="lb-name">${row.name}${row.name===session.name?'<span class="you">YOU</span>':''}</div>
+        <div class="lb-stats">${row.daysLogged} days · ${row.workouts} workouts · ${row.avgSleep}h avg sleep</div>
+      </div>
+      <div class="lb-score">${row.avgScore}</div>
+    </div>
+  `).join('');
+}
+
+init();
+</script>
+</body>
+</html>
