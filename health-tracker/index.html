@@ -171,6 +171,23 @@ textarea{
 
 .empty-state{text-align:center;color:var(--text-dim);font-size:13px;padding:30px 0;}
 .loading-state{text-align:center;color:var(--text-dim);font-size:13px;padding:40px 0;font-family:'SF Mono',Menlo,monospace;}
+
+/* ---- Admin ---- */
+.admin-link{display:block;text-align:center;color:var(--text-dim);font-size:11px;margin-top:18px;
+  text-decoration:underline;cursor:pointer;background:none;border:none;width:100%;}
+.admin-badge{display:inline-block;background:var(--bad);color:var(--text);font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:5px;letter-spacing:.04em;margin-left:6px;vertical-align:middle;}
+.admin-table{width:100%;border-collapse:collapse;}
+.admin-table th{text-align:left;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;
+  padding:6px 8px;border-bottom:1px solid var(--line);}
+.admin-table td{font-size:13px;padding:8px 8px;border-bottom:1px solid var(--line);}
+.admin-table tr:last-child td{border-bottom:none;}
+.admin-code-pill{font-family:'SF Mono',Menlo,monospace;font-weight:700;color:var(--ember);}
+.admin-del-btn{background:none;border:1px solid var(--bad);color:var(--bad);font-size:11px;
+  padding:4px 9px;border-radius:6px;cursor:pointer;}
+.admin-back{background:var(--paper);border:1px solid var(--line);color:var(--text-dim);font-size:11px;
+  padding:7px 12px;border-radius:8px;cursor:pointer;margin-bottom:14px;}
+.admin-drill{cursor:pointer;color:var(--ember);text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -188,6 +205,15 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const N_DAYS = 90;
 const SESSION_KEY = 'h90:session'; // {playerId, name, challengeCode}
+const LAST_CODE_KEY = 'h90:lastCode';
+
+function getLastChallengeCode(){
+  try{ return localStorage.getItem(LAST_CODE_KEY) || ''; }
+  catch(e){ return ''; }
+}
+function setLastChallengeCode(code){
+  try{ localStorage.setItem(LAST_CODE_KEY, code); }catch(e){}
+}
 
 function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
 function addDays(s,n){ const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
@@ -346,11 +372,35 @@ let statusTimer = null;
 
 // login form state
 let loginMode = 'join'; // join | login
-let loginForm = { challengeCode:'', name:'', pin:'' };
+let loginForm = { challengeCode: getLastChallengeCode(), name:'', pin:'' };
 let loginError = '';
 let loginLoading = false;
 
+// admin state — completely independent of player session
+const ADMIN_PASS_SESSION_KEY = 'h90:adminPass'; // sessionStorage only, cleared when tab closes
+let showAdminGate = false;
+let adminPasswordInput = '';
+let adminError = '';
+let adminLoading = false;
+let adminUnlocked = false;
+let adminView = 'overview'; // overview | players
+let adminChallenges = null;
+let adminPlayersForCode = null;
+let adminDrillCode = null;
+let newChallengeCode = '';
+let newChallengeName = '';
+
 async function init(){
+  // restore admin unlock for this browser tab session, if present
+  try{
+    if(sessionStorage.getItem(ADMIN_PASS_SESSION_KEY)) adminUnlocked = true;
+  }catch(e){}
+
+  if(adminUnlocked){
+    await loadAdminOverview();
+    return;
+  }
+
   if(!session){
     renderLogin();
   } else {
@@ -375,6 +425,8 @@ async function loadEntriesForPlayer(){
 // LOGIN SCREEN
 // =====================================================
 function renderLogin(){
+  if(showAdminGate){ renderAdminGate(); return; }
+
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="login-wrap">
@@ -410,6 +462,7 @@ function renderLogin(){
             ? "Ask whoever started the challenge for the code. Pick a PIN you'll remember — there's no recovery if you forget it."
             : "Use the same name and PIN you joined with."}
         </div>
+        <button class="admin-link" id="adminLink">Admin console</button>
       </div>
     </div>
   `;
@@ -421,6 +474,7 @@ function renderLogin(){
   document.getElementById('li_name').addEventListener('input', e=>{ loginForm.name = e.target.value; });
   document.getElementById('li_pin').addEventListener('input', e=>{ loginForm.pin = e.target.value.slice(0,4); });
   document.getElementById('loginSubmit').addEventListener('click', submitLogin);
+  document.getElementById('adminLink').addEventListener('click', ()=>{ showAdminGate=true; renderLogin(); });
 }
 
 async function submitLogin(){
@@ -434,6 +488,8 @@ async function submitLogin(){
     renderLogin();
     return;
   }
+
+  setLastChallengeCode(code);
 
   loginLoading = true;
   renderLogin();
@@ -483,20 +539,241 @@ function logout(){
   clearSession();
   session = null;
   entriesCache = {};
-  loginForm = { challengeCode:'', name:'', pin:'' };
+  loginForm = { challengeCode: getLastChallengeCode(), name:'', pin:'' };
   renderLogin();
+}
+
+// =====================================================
+// ADMIN — gated by a separate password, independent of player login
+// =====================================================
+function renderAdminGate(){
+  const app = document.getElementById('app');
+  if(adminUnlocked){ renderAdminConsole(); return; }
+
+  app.innerHTML = `
+    <div class="login-wrap">
+      <div class="login-brand">
+        <div class="title">ADMIN<span class="admin-badge">RESTRICTED</span></div>
+        <div class="sub">Enter the admin password to continue.</div>
+      </div>
+      <div class="login-card">
+        <div class="field">
+          <label>Admin password</label>
+          <input type="password" id="admin_pw" placeholder="••••••••" value="${adminPasswordInput}" autocomplete="off">
+        </div>
+        <button class="btn-login" id="adminSubmit" ${adminLoading?'disabled':''}>${adminLoading?'Checking…':'Unlock'}</button>
+        <div class="login-error">${adminError}</div>
+        <button class="admin-link" id="adminBackLink">← Back to login</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('admin_pw').addEventListener('input', e=>{ adminPasswordInput = e.target.value; });
+  document.getElementById('admin_pw').addEventListener('keydown', e=>{ if(e.key==='Enter') submitAdminPassword(); });
+  document.getElementById('adminSubmit').addEventListener('click', submitAdminPassword);
+  document.getElementById('adminBackLink').addEventListener('click', ()=>{ showAdminGate=false; renderLogin(); });
+}
+
+async function submitAdminPassword(){
+  adminError = '';
+  if(!adminPasswordInput){ adminError = 'Enter the admin password.'; renderAdminGate(); return; }
+  adminLoading = true;
+  renderAdminGate();
+  try{
+    const { data, error } = await db.rpc('verify_admin', { p_password: adminPasswordInput });
+    adminLoading = false;
+    if(error){ adminError = 'Connection error — try again.'; renderAdminGate(); return; }
+    if(data === true){
+      adminUnlocked = true;
+      try{ sessionStorage.setItem(ADMIN_PASS_SESSION_KEY, adminPasswordInput); }catch(e){}
+      await loadAdminOverview();
+    } else {
+      adminError = 'Wrong password.';
+      renderAdminGate();
+    }
+  }catch(err){
+    adminLoading = false;
+    adminError = 'Unexpected error — try again.';
+    renderAdminGate();
+  }
+}
+
+function getAdminPassword(){
+  try{ return sessionStorage.getItem(ADMIN_PASS_SESSION_KEY) || adminPasswordInput; }
+  catch(e){ return adminPasswordInput; }
+}
+
+function adminLogout(){
+  adminUnlocked = false;
+  showAdminGate = false;
+  adminPasswordInput = '';
+  adminChallenges = null;
+  adminPlayersForCode = null;
+  adminDrillCode = null;
+  try{ sessionStorage.removeItem(ADMIN_PASS_SESSION_KEY); }catch(e){}
+  if(session){ renderApp(); } else { renderLogin(); }
+}
+
+async function loadAdminOverview(){
+  adminView = 'overview';
+  adminChallenges = null;
+  renderCurrentScreen();
+  const { data, error } = await db.rpc('admin_list_challenges', { p_password: getAdminPassword() });
+  adminChallenges = error ? [] : (data || []);
+  renderCurrentScreen();
+}
+
+async function loadAdminPlayers(code){
+  adminView = 'players';
+  adminDrillCode = code;
+  adminPlayersForCode = null;
+  renderCurrentScreen();
+  const { data, error } = await db.rpc('admin_list_players', { p_password: getAdminPassword(), p_code: code });
+  adminPlayersForCode = error ? [] : (data || []);
+  renderCurrentScreen();
+}
+
+function renderCurrentScreen(){
+  // admin can be reached either from the logged-out login flow or from inside the logged-in app
+  if(session){ renderApp(); } else { renderAdminGate(); }
+}
+
+function renderAdminConsole(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="header-bar">
+      <div class="brand">ADMIN<span class="admin-badge">CONSOLE</span></div>
+      <button class="logout-btn" id="adminLogoutBtn">Exit admin</button>
+    </div>
+    <div id="adminContent"></div>
+  `;
+  document.getElementById('adminLogoutBtn').addEventListener('click', adminLogout);
+  const content = document.getElementById('adminContent');
+  if(adminView==='players'){
+    content.innerHTML = renderAdminPlayersView();
+  } else {
+    content.innerHTML = renderAdminOverviewView();
+  }
+  attachAdminListeners();
+}
+
+function renderAdminOverviewView(){
+  return `
+    <div class="card">
+      <h3>Create a new challenge</h3>
+      <div class="row">
+        <label>Code</label>
+        <input type="text" id="newCode" placeholder="e.g. GYMBROS90" value="${newChallengeCode}" autocapitalize="characters">
+      </div>
+      <div class="row">
+        <label>Name</label>
+        <input type="text" id="newName" placeholder="e.g. July Reset Squad" value="${newChallengeName}">
+      </div>
+      <button class="btn-save" id="createChallengeBtn" style="margin-top:6px;">Create challenge</button>
+    </div>
+
+    <div class="card">
+      <h3>All challenges</h3>
+      ${adminChallenges===null ? `<div class="loading-state">Loading…</div>` :
+        adminChallenges.length===0 ? `<div class="empty-state">No challenges yet — create one above.</div>` :
+        `<table class="admin-table">
+          <tr><th>Code</th><th>Players</th><th>Entries</th><th></th></tr>
+          ${adminChallenges.map(c=>`
+            <tr>
+              <td><span class="admin-code-pill admin-drill" data-code="${c.code}">${c.code}</span><br><span style="color:var(--text-dim);font-size:11px;">${c.name||''}</span></td>
+              <td>${c.player_count}</td>
+              <td>${c.entry_count}</td>
+              <td><button class="admin-del-btn" data-delcode="${c.code}">Delete</button></td>
+            </tr>
+          `).join('')}
+        </table>`}
+    </div>
+  `;
+}
+
+function renderAdminPlayersView(){
+  return `
+    <button class="admin-back" id="adminBackToOverview">← All challenges</button>
+    <div class="card">
+      <h3>Players in ${adminDrillCode}</h3>
+      ${adminPlayersForCode===null ? `<div class="loading-state">Loading…</div>` :
+        adminPlayersForCode.length===0 ? `<div class="empty-state">No one has joined this challenge yet.</div>` :
+        `<table class="admin-table">
+          <tr><th>Name</th><th>Entries</th><th>Last logged</th><th></th></tr>
+          ${adminPlayersForCode.map(p=>`
+            <tr>
+              <td>${p.name}</td>
+              <td>${p.entry_count}</td>
+              <td>${p.last_entry || '—'}</td>
+              <td><button class="admin-del-btn" data-delplayer="${p.player_id}">Remove</button></td>
+            </tr>
+          `).join('')}
+        </table>`}
+    </div>
+  `;
+}
+
+function attachAdminListeners(){
+  if(adminView==='overview'){
+    const codeEl = document.getElementById('newCode');
+    const nameEl = document.getElementById('newName');
+    if(codeEl) codeEl.addEventListener('input', e=>{ newChallengeCode = e.target.value.toUpperCase(); });
+    if(nameEl) nameEl.addEventListener('input', e=>{ newChallengeName = e.target.value; });
+    const createBtn = document.getElementById('createChallengeBtn');
+    if(createBtn) createBtn.addEventListener('click', adminCreateChallenge);
+
+    document.querySelectorAll('.admin-drill').forEach(el=>{
+      el.addEventListener('click', ()=>loadAdminPlayers(el.dataset.code));
+    });
+    document.querySelectorAll('[data-delcode]').forEach(btn=>{
+      btn.addEventListener('click', ()=>adminDeleteChallenge(btn.dataset.delcode));
+    });
+  } else {
+    const backBtn = document.getElementById('adminBackToOverview');
+    if(backBtn) backBtn.addEventListener('click', loadAdminOverview);
+    document.querySelectorAll('[data-delplayer]').forEach(btn=>{
+      btn.addEventListener('click', ()=>adminDeletePlayer(btn.dataset.delplayer));
+    });
+  }
+}
+
+async function adminCreateChallenge(){
+  if(!newChallengeCode.trim()){ return; }
+  const { data, error } = await db.rpc('admin_create_challenge', {
+    p_password: getAdminPassword(), p_code: newChallengeCode.trim(), p_name: newChallengeName.trim() || newChallengeCode.trim()
+  });
+  if(!error && data && data[0] && data[0].ok){
+    newChallengeCode = ''; newChallengeName = '';
+  }
+  await loadAdminOverview();
+}
+
+async function adminDeleteChallenge(code){
+  if(!confirm(`Delete challenge "${code}" and ALL its players and entries? This can't be undone.`)) return;
+  await db.rpc('admin_delete_challenge', { p_password: getAdminPassword(), p_code: code });
+  await loadAdminOverview();
+}
+
+async function adminDeletePlayer(playerId){
+  if(!confirm('Remove this player and all their entries? This can\'t be undone.')) return;
+  await db.rpc('admin_delete_player', { p_password: getAdminPassword(), p_player_id: playerId });
+  await loadAdminPlayers(adminDrillCode);
 }
 
 // =====================================================
 // MAIN APP (after login)
 // =====================================================
 function renderApp(){
+  if(showAdminGate || adminUnlocked){
+    if(adminUnlocked){ renderAdminConsole(); } else { renderAdminGate(); }
+    return;
+  }
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="header-bar">
       <div class="brand">90<span class="dot">·</span>RESET</div>
       <div class="header-right">
         <span class="player-chip">${session.name}</span>
+        <button class="logout-btn" id="adminEnterBtn" style="margin-right:4px;">Admin</button>
         <button class="logout-btn" id="logoutBtn">Log out</button>
       </div>
     </div>
@@ -508,6 +785,7 @@ function renderApp(){
     <div class="status-msg" id="statusMsg">Saved</div>
   `;
   document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.getElementById('adminEnterBtn').addEventListener('click', ()=>{ showAdminGate=true; renderApp(); });
   document.querySelectorAll('.tabs button').forEach(b=>{
     b.addEventListener('click', async ()=>{
       activeTab = b.dataset.tab;
