@@ -184,7 +184,7 @@ textarea{
 const SUPABASE_URL = 'https://ithfjdyiffedyqrkllvu.supabase.co/rest/v1/';
 const SUPABASE_ANON_KEY = 'sb_publishable_pGNMzoBtNr-06oTIBoe9bg_4Qi4QepQ';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const N_DAYS = 90;
 const SESSION_KEY = 'h90:session'; // {playerId, name, challengeCode}
@@ -360,7 +360,7 @@ async function init(){
 }
 
 async function loadEntriesForPlayer(){
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('entries')
     .select('*')
     .eq('player_id', session.playerId);
@@ -440,7 +440,7 @@ async function submitLogin(){
 
   try{
     if(loginMode==='join'){
-      const { data, error } = await supabase.rpc('register_player', {
+      const { data, error } = await db.rpc('register_player', {
         p_challenge_code: code, p_name: name, p_pin: pin
       });
       loginLoading = false;
@@ -456,7 +456,7 @@ async function submitLogin(){
       await loadEntriesForPlayer();
       renderApp();
     } else {
-      const { data, error } = await supabase.rpc('login_player', {
+      const { data, error } = await db.rpc('login_player', {
         p_challenge_code: code, p_name: name, p_pin: pin
       });
       loginLoading = false;
@@ -749,7 +749,7 @@ async function saveEntry(){
   isSaving = true;
   renderApp();
   const row = entryToDbRow(entry, session.playerId, selectedDate);
-  const { error } = await supabase.from('entries').upsert(row, { onConflict: 'player_id,entry_date' });
+  const { error } = await db.from('entries').upsert(row, { onConflict: 'player_id,entry_date' });
   isSaving = false;
   entriesCache[selectedDate] = entry;
   renderApp();
@@ -786,13 +786,13 @@ function updateScoreLive(){
 // =====================================================
 async function loadLeaderboard(){
   leaderboardData = null;
-  const { data: players, error: pErr } = await supabase
+  const { data: players, error: pErr } = await db
     .from('players')
     .select('id, name')
     .eq('challenge_code', session.challengeCode);
   if(pErr || !players){ leaderboardData = []; return; }
 
-  const { data: entries, error: eErr } = await supabase
+  const { data: entries, error: eErr } = await db
     .from('entries')
     .select('*')
     .in('player_id', players.map(p=>p.id));
